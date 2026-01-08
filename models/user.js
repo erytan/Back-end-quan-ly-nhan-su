@@ -28,6 +28,35 @@ const userSchema = new mongoose.Schema({
     base_salary:{
         type: Number,
     },
+    gender: {
+        type: String,
+        enum: ['male', 'female', 'other']
+    },
+    birthday: {
+        type: Date
+    },
+    join_date: {
+        type: Date,
+        default: Date.now
+    },
+    status: {
+        type: String,
+        enum: ['active', 'inactive', 'probation'],
+        default: 'probation'
+    },
+    manager: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users' // Tham chiếu đến chính Model này
+    },
+    bank_info: {
+        bank_name: String,
+        account_number: String,
+        account_holder: String
+    },
+    avatar: {
+        type: String,
+        default: 'https://bit.ly/default-avatar'
+    },
     department: {
         type: String,
     },
@@ -35,8 +64,8 @@ const userSchema = new mongoose.Schema({
         type:Boolean,
     },
     mobile: {
-        type: Number,
-        required: false,
+        type: String,
+        sparse: true,
         unique: true,
     },
     deviceSessions: [
@@ -61,10 +90,17 @@ const userSchema = new mongoose.Schema({
 // Middleware để mã hóa mật khẩu trước khi lưu
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {
-        next();
+       return next();
     }
-    const salt = bcrypt.genSaltSync(10);
-    this.password = await bcrypt.hashSync(this.password, salt);
+ try {
+        // Tạo salt bất đồng bộ (không chặn luồng)
+        const salt = await bcrypt.genSalt(10);
+        // Hash mật khẩu bất đồng bộ
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
 })
 // Phương thức để so sánh mật khẩu
 userSchema.methods = {
